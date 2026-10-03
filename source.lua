@@ -1,16 +1,10 @@
---!strict
---[[
-    Windows 11 "Settings" Fluent Mica UI Library
-    Engineered for loadstring / GitHub hosting.
-]]
-
+-- Windows 11 "Settings" Fluent Mica UI Library (Universal Lua 5.1 / Luau)
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Visual Palette & Mica Token Definitions
 local Theme = {
     MicaBg = Color3.fromRGB(26, 26, 26),
     SidebarBg = Color3.fromRGB(32, 32, 32),
@@ -35,14 +29,14 @@ local Theme = {
 local Win11Lib = {}
 Win11Lib.__index = Win11Lib
 
-local function Tween(instance: Instance, duration: number, properties: { [string]: any })
+local function Tween(instance, duration, properties)
     local tweenInfo = TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local anim = TweenService:Create(instance, tweenInfo, properties)
     anim:Play()
     return anim
 end
 
-local function GetGuiContainer(): Instance
+local function GetGuiContainer()
     local success, coreGui = pcall(function()
         return game:GetService("CoreGui")
     end)
@@ -52,14 +46,14 @@ local function GetGuiContainer(): Instance
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 
-function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Accent: Color3? })
+function Win11Lib.CreateWindow(config)
     config = config or {}
     local currentAccent = config.Accent or Theme.Accent
 
     local Window = {
-        _connections = {} :: { [number]: RBXScriptConnection },
-        _tabs = {} :: { [string]: any },
-        _activeTab = nil :: any,
+        _connections = {},
+        _tabs = {},
+        _activeTab = nil,
         _isMinimized = false,
         _searchQuery = "",
     }
@@ -134,7 +128,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
     ControlBox.BackgroundTransparency = 1
     ControlBox.Parent = TitleBar
 
-    local function CreateControlButton(name: string, pos: number, text: string)
+    local function CreateControlButton(name, pos, text)
         local btn = Instance.new("TextButton")
         btn.Name = name
         btn.Size = UDim2.new(0, 46, 1, 0)
@@ -167,11 +161,11 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
     end
 
     local MinBtn = CreateControlButton("Min", 0, "—")
-    local _MaxBtn = CreateControlButton("Max", 46, "□")
+    CreateControlButton("Max", 46, "□")
     local CloseBtn = CreateControlButton("Close", 92, "✕")
 
     local isDragging = false
-    local dragStart = Vector2.zero
+    local dragStart = Vector2.new(0, 0)
     local frameStart = UDim2.new()
 
     table.insert(Window._connections, TitleBar.InputBegan:Connect(function(input)
@@ -180,7 +174,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             dragStart = Vector2.new(input.Position.X, input.Position.Y)
             frameStart = Shell.Position
 
-            local endConn: RBXScriptConnection
+            local endConn
             endConn = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     isDragging = false
@@ -393,17 +387,17 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
     end)
 
     SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
-        local query = SearchInput.Text:lower()
+        local query = string.lower(SearchInput.Text)
         Window._searchQuery = query
 
         for _, tab in pairs(Window._tabs) do
-            local tabMatches = (query == "") or tab.Name:lower():find(query) ~= nil
+            local tabMatches = (query == "") or (string.find(string.lower(tab.Name), query, 1, true) ~= nil)
             local anyChildMatches = false
 
             for _, card in ipairs(tab.Cards) do
-                local title = card.TitleText:lower()
-                local desc = card.DescText:lower()
-                if query == "" or title:find(query) or desc:find(query) then
+                local title = string.lower(card.TitleText)
+                local desc = string.lower(card.DescText)
+                if query == "" or string.find(title, query, 1, true) or string.find(desc, query, 1, true) then
                     card.Instance.Visible = true
                     anyChildMatches = true
                 else
@@ -417,19 +411,19 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
     function Window:Destroy()
         for _, conn in ipairs(self._connections) do
-            if conn.Connected then
+            if conn and conn.Connected then
                 conn:Disconnect()
             end
         end
         ScreenGui:Destroy()
     end
 
-    function Window:CreateTab(tabName: string, iconAsset: string?)
+    function Window:CreateTab(tabName, iconAsset)
         local Tab = {
             Name = tabName,
-            Cards = {} :: { [number]: { Instance: GuiObject, TitleText: string, DescText: string } },
-            PageFrame = nil :: ScrollingFrame?,
-            NavButton = nil :: TextButton?,
+            Cards = {},
+            PageFrame = nil,
+            NavButton = nil,
         }
 
         local Page = Instance.new("ScrollingFrame")
@@ -537,7 +531,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
         NavBtn.MouseButton1Click:Connect(Select)
 
-        local function CreateBaseCard(title: string, desc: string?, minHeight: number?)
+        local function CreateBaseCard(title, desc, minHeight)
             local Card = Instance.new("Frame")
             Card.Name = title .. "_Card"
             Card.Size = UDim2.new(1, 0, 0, minHeight or 54)
@@ -563,8 +557,8 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
             local CardTitle = Instance.new("TextLabel")
             CardTitle.Name = "CardTitle"
-            CardTitle.Size = UDim2.new(1, 0, 0, desc and 22 or 54)
-            CardTitle.Position = UDim2.new(0, 0, 0, desc and 8 or 0)
+            CardTitle.Size = UDim2.new(1, 0, 0, (desc and desc ~= "") and 22 or 54)
+            CardTitle.Position = UDim2.new(0, 0, 0, (desc and desc ~= "") and 8 or 0)
             CardTitle.BackgroundTransparency = 1
             CardTitle.Font = Theme.FontFamily
             CardTitle.TextSize = 13
@@ -596,7 +590,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             return Card
         end
 
-        function Tab:AddToggle(title: string, desc: string, defaultVal: boolean, callback: (boolean) -> ())
+        function Tab:AddToggle(title, desc, defaultVal, callback)
             local Card = CreateBaseCard(title, desc)
             local state = defaultVal or false
 
@@ -626,7 +620,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             ThumbCorner.CornerRadius = UDim.new(1, 0)
             ThumbCorner.Parent = Thumb
 
-            local function SetState(val: boolean)
+            local function SetState(val)
                 state = val
                 if state then
                     Tween(SwitchTrack, 0.15, { BackgroundColor3 = currentAccent })
@@ -641,7 +635,9 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
                         BackgroundColor3 = Color3.fromRGB(220, 220, 220),
                     })
                 end
-                task.spawn(callback, state)
+                if callback then
+                    task.spawn(callback, state)
+                end
             end
 
             SwitchTrack.MouseButton1Click:Connect(function()
@@ -651,7 +647,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             return { SetValue = SetState }
         end
 
-        function Tab:AddButton(title: string, desc: string, buttonText: string, callback: () -> ())
+        function Tab:AddButton(title, desc, buttonText, callback)
             local Card = CreateBaseCard(title, desc)
 
             local ActionBtn = Instance.new("TextButton")
@@ -688,11 +684,13 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             ActionBtn.MouseButton1Click:Connect(function()
                 Tween(ActionBtn, 0.08, { BackgroundColor3 = Theme.AccentDark }):Completed:Wait()
                 Tween(ActionBtn, 0.12, { BackgroundColor3 = Theme.CardHover })
-                task.spawn(callback)
+                if callback then
+                    task.spawn(callback)
+                end
             end)
         end
 
-        function Tab:AddSlider(title: string, desc: string, min: number, max: number, default: number, callback: (number) -> ())
+        function Tab:AddSlider(title, desc, min, max, default, callback)
             local Card = CreateBaseCard(title, desc)
             local currentVal = math.clamp(default or min, min, max)
 
@@ -753,7 +751,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
             local isDraggingSlider = false
 
-            local function UpdateSlider(inputX: number)
+            local function UpdateSlider(inputX)
                 local absPos = Track.AbsolutePosition.X
                 local absSize = Track.AbsoluteSize.X
                 local percent = math.clamp((inputX - absPos) / absSize, 0, 1)
@@ -761,7 +759,9 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
                 Fill.Size = UDim2.new(percent, 0, 1, 0)
                 ValueReadout.Text = tostring(computed)
-                task.spawn(callback, computed)
+                if callback then
+                    task.spawn(callback, computed)
+                end
             end
 
             Track.InputBegan:Connect(function(input)
@@ -784,7 +784,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             end))
         end
 
-        function Tab:AddDropdown(title: string, desc: string, options: { string }, default: string?, callback: (string) -> ())
+        function Tab:AddDropdown(title, desc, options, default, callback)
             local Card = CreateBaseCard(title, desc)
             local isOpen = false
             local currentChoice = default or options[1] or ""
@@ -880,7 +880,9 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
                     isOpen = false
                     Popup.Visible = false
                     Chevron.Text = "▼"
-                    task.spawn(callback, currentChoice)
+                    if callback then
+                        task.spawn(callback, currentChoice)
+                    end
                 end)
             end
 
@@ -897,7 +899,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
             end)
         end
 
-        function Tab:AddKeybind(title: string, desc: string, defaultKey: Enum.KeyCode, callback: (Enum.KeyCode) -> ())
+        function Tab:AddKeybind(title, desc, defaultKey, callback)
             local Card = CreateBaseCard(title, desc)
             local currentKey = defaultKey or Enum.KeyCode.RightControl
             local listening = false
@@ -937,12 +939,14 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
                     currentKey = input.KeyCode
                     BindBtn.Text = currentKey.Name
                     BindStroke.Color = Theme.StrokeColor
-                    task.spawn(callback, currentKey)
+                    if callback then
+                        task.spawn(callback, currentKey)
+                    end
                 end
             end))
         end
 
-        function Tab:AddTextInput(title: string, desc: string, placeholder: string, callback: (string) -> ())
+        function Tab:AddTextInput(title, desc, placeholder, callback)
             local Card = CreateBaseCard(title, desc)
 
             local TextBox = Instance.new("TextBox")
@@ -974,13 +978,15 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
                 Tween(TextStroke, 0.15, { Color = currentAccent, Transparency = 0 })
             end)
 
-            TextBox.FocusLost:Connect(function(_enterPressed)
+            TextBox.FocusLost:Connect(function()
                 Tween(TextStroke, 0.15, { Color = Theme.StrokeColor, Transparency = Theme.StrokeTransparency })
-                task.spawn(callback, TextBox.Text)
+                if callback then
+                    task.spawn(callback, TextBox.Text)
+                end
             end)
         end
 
-        function Tab:AddExpander(title: string, desc: string)
+        function Tab:AddExpander(title, desc)
             local Card = CreateBaseCard(title, desc)
             local isExpanded = false
 
@@ -1030,7 +1036,7 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
 
             local ExpanderSubGroup = {}
 
-            function ExpanderSubGroup:AddButton(subTitle: string, btnText: string, callback: () -> ())
+            function ExpanderSubGroup:AddButton(subTitle, btnText, callback)
                 local SubItem = Instance.new("Frame")
                 SubItem.Size = UDim2.new(1, 0, 0, 38)
                 SubItem.BackgroundColor3 = Theme.CardSubtle
@@ -1067,7 +1073,11 @@ function Win11Lib.CreateWindow(config: { Title: string?, Subtitle: string?, Acce
                 BtnCorner.CornerRadius = Theme.ControlCorner
                 BtnCorner.Parent = ActionBtn
 
-                ActionBtn.MouseButton1Click:Connect(callback)
+                ActionBtn.MouseButton1Click:Connect(function()
+                    if callback then
+                        task.spawn(callback)
+                    end
+                end)
                 RecalculateHeight()
             end
 
